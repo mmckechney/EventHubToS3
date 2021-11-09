@@ -29,18 +29,20 @@ namespace EventProducer
         public async Task StartAsync(CancellationToken cancellationToken)
         {
             int numOfEvents = Program.messageCount;
-            int batchSize = 500;
+            int batchSize = 10000;
             int eventsSent = 0;
             int batchItemCounter = 0;
             try{
                 // Create a producer client that you can use to send events to an event hub
                 producerClient = new EventHubProducerClient(config["EventHubConnectionString"], config["EventHubName"]);
 
-                // Create a batch of events 
-                using EventDataBatch eventBatch = await producerClient.CreateBatchAsync();
+                
+                
                 while(eventsSent < numOfEvents)
                 {
-                    while(batchItemCounter < batchSize)
+                    // Create a batch of events 
+                    using EventDataBatch eventBatch = await producerClient.CreateBatchAsync();
+                    while(batchItemCounter < batchSize && eventsSent < numOfEvents)
                     {
                         if (!eventBatch.TryAdd(new EventData(Encoding.UTF8.GetBytes($"Event {eventsSent}"))))
                         {
