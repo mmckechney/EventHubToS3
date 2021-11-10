@@ -22,6 +22,12 @@ param location string = resourceGroup().location
 @description('App Insights Name')
 param appInsightsName string= '${functionAppName}_appinsights'
 
+@description('Elastic Premium Function Name')
+param functionAppNameElastic string 
+param elasticAppServicePlanName string = '${functionAppNameElastic}_appsvcplan'
+param elasticAppInsightsName string= '${functionAppNameElastic}_appinsights'
+param elasticStorageAccount string = '${toLower(functionAppNameElastic)}storage'
+
 @allowed([
   'Basic'
   'Standard'
@@ -116,9 +122,24 @@ resource keyVault_resource 'Microsoft.KeyVault/vaults@2019-09-01' = {
         }
         
       }
+      {
+        tenantId: subscription().tenantId
+        objectId:elasticFunctionApp_resource.identity.principalId
+        permissions:  {
+          secrets:[
+            'set'
+            'list'
+            'get'
+          ]
+        }
+        
+      }
     ]
   }
- 
+  dependsOn:[
+    functionApp_resource
+    elasticFunctionApp_resource
+  ]
 }
 
 
@@ -209,6 +230,216 @@ resource appServicerPlan_resource 'Microsoft.Web/serverfarms@2021-02-01' = {
   }
   dependsOn:[
     storageAccount_resource
+  ]
+}
+
+
+resource elasticAppInsights_resource 'microsoft.insights/components@2020-02-02' = {
+  name: elasticAppInsightsName
+  location: location
+  kind: 'web'
+  properties: {
+    Application_Type: 'web'
+    RetentionInDays: 90
+    IngestionMode: 'ApplicationInsights'
+    publicNetworkAccessForIngestion: 'Enabled'
+    publicNetworkAccessForQuery: 'Enabled'
+  }
+}
+resource elasticStorage_resource 'Microsoft.Storage/storageAccounts@2021-06-01' = {
+  name: elasticStorageAccount
+  location: location
+  sku: {
+    name: 'Standard_LRS'
+  }
+  kind: 'Storage'
+  properties: {
+    minimumTlsVersion: 'TLS1_2'
+    allowBlobPublicAccess: true
+    networkAcls: {
+      bypass: 'AzureServices'
+      virtualNetworkRules: []
+      ipRules: []
+      defaultAction: 'Allow'
+    }
+    supportsHttpsTrafficOnly: true
+    encryption: {
+      services: {
+        file: {
+          keyType: 'Account'
+          enabled: true
+        }
+        blob: {
+          keyType: 'Account'
+          enabled: true
+        }
+      }
+      keySource: 'Microsoft.Storage'
+    }
+  }
+}
+
+resource elasticAppServicePlan_resource 'Microsoft.Web/serverfarms@2021-02-01' = {
+  name: elasticAppServicePlanName
+  location: location
+  sku: {
+    name: 'EP1'
+    tier: 'ElasticPremium'
+    size: 'EP1'
+    family: 'EP'
+    capacity: 1
+  }
+  kind: 'elastic'
+  properties: {
+    perSiteScaling: false
+    elasticScaleEnabled: true
+    maximumElasticWorkerCount: 20
+    isSpot: false
+    reserved: false
+    isXenon: false
+    hyperV: false
+    targetWorkerCount: 0
+    targetWorkerSizeId: 0
+    zoneRedundant: false
+  }
+}
+
+
+resource elasticFunctionApp_resource 'Microsoft.Web/sites@2021-02-01' = {
+  name: functionAppNameElastic
+  location: location
+  kind: 'functionapp'
+  identity: {
+    type: 'SystemAssigned'
+    }
+  properties: {
+    enabled: true
+    siteConfig:{
+      numberOfWorkers: 1
+      acrUseManagedIdentityCreds: false
+      alwaysOn: false
+      http20Enabled: false
+      functionAppScaleLimit: 0
+      minimumElasticInstanceCount: 1
+      appSettings:[
+        {
+          name: 'FUNCTIONS_EXTENSION_VERSION'
+          value: '~4'
+        }
+        {
+          name: 'FUNCTIONS_WORKER_RUNTIME'
+          value: 'dotnet'
+        }
+        {
+          name: 'APPINSIGHTS_INSTRUMENTATIONKEY'
+          value: reference('microsoft.insights/components/${elasticAppInsights_resource.name}', '2015-05-01').InstrumentationKey
+        }
+        {
+          name: 'AzureWebJobsStorage'
+          value:'DefaultEndpointsProtocol=https;AccountName=${elasticStorage_resource.name};AccountKey=${listKeys('${elasticStorage_resource.id}','2021-06-01').keys[0].value};EndpointSuffix=core.windows.net'  
+        }
+        {
+          name: 'WEBSITE_CONTENTAZUREFILECONNECTIONSTRING'
+          value: 'DefaultEndpointsProtocol=https;AccountName=${elasticStorage_resource.name};AccountKey=${listKeys('${elasticStorage_resource.id}','2021-06-01').keys[0].value};EndpointSuffix=core.windows.net'  
+        }
+      ]
+    }
+    hostNameSslStates: [
+      {
+        name: '${functionAppNameElastic}.azurewebsites.net'
+        sslState: 'Disabled'
+        hostType: 'Standard'
+      }
+      {
+        name: '${functionAppNameElastic}.scm.azurewebsites.net'
+        sslState: 'Disabled'
+        hostType: 'Repository'
+      }
+    ]
+    serverFarmId: elasticAppServicePlan_resource.id
+    keyVaultReferenceIdentity: 'SystemAssigned'
+  }
+  dependsOn:[
+    elasticAppInsights_resource
+    elasticStorage_resource
+  ]
+}
+
+resource elasticSiteConfig 'Microsoft.Web/sites/config@2021-02-01' = {
+  parent: elasticFunctionApp_resource
+  name: 'web'
+  properties: {
+    numberOfWorkers: 1
+    defaultDocuments: [
+      'Default.htm'
+      'Default.html'
+      'Default.asp'
+      'index.htm'
+      'index.html'
+      'iisstart.htm'
+      'default.aspx'
+      'index.php'
+    ]
+    netFrameworkVersion: 'v6.0'
+    phpVersion: '5.6'
+    requestTracingEnabled: false
+    remoteDebuggingEnabled: false
+    httpLoggingEnabled: false
+    acrUseManagedIdentityCreds: false
+    logsDirectorySizeLimit: 35
+    detailedErrorLoggingEnabled: false
+    publishingUsername: '$ehdemoelastic'
+    scmType: 'None'
+    use32BitWorkerProcess: true
+    webSocketsEnabled: false
+    alwaysOn: false
+    managedPipelineMode: 'Integrated'
+    virtualApplications: [
+      {
+        virtualPath: '/'
+        physicalPath: 'site\\wwwroot'
+        preloadEnabled: false
+      }
+    ]
+    loadBalancing: 'LeastRequests'
+    experiments: {
+      rampUpRules: []
+    }
+    autoHealEnabled: false
+    vnetRouteAllEnabled: false
+    vnetPrivatePortsCount: 0
+    localMySqlEnabled: false
+    ipSecurityRestrictions: [
+      {
+        ipAddress: 'Any'
+        action: 'Allow'
+        priority: 1
+        name: 'Allow all'
+        description: 'Allow all access'
+      }
+    ]
+    scmIpSecurityRestrictions: [
+      {
+        ipAddress: 'Any'
+        action: 'Allow'
+        priority: 1
+        name: 'Allow all'
+        description: 'Allow all access'
+      }
+    ]
+    scmIpSecurityRestrictionsUseMain: false
+    http20Enabled: false
+    minTlsVersion: '1.2'
+    scmMinTlsVersion: '1.0'
+    ftpsState: 'AllAllowed'
+    preWarmedInstanceCount: 1
+    functionAppScaleLimit: 0
+    functionsRuntimeScaleMonitoringEnabled: false
+    minimumElasticInstanceCount: 1
+    azureStorageAccounts: {}
+  }
+  dependsOn:[
+    elasticFunctionApp_resource
   ]
 }
 

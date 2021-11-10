@@ -9,14 +9,14 @@ param(
     $deployResources = $true
 )
 
-
+$functionAppNameElastic = "$($functionAppName)elastic"
 Write-Host "Creating Resource Group $resourceGroupName" -ForegroundColor Cyan
 az group create --name $resourceGroupName --location $location -o table
 
 Write-Host "Creating Demo Function App and demo resources" -ForegroundColor Cyan
 if($deployResources)
 {
-    az deployment group create -g $resourceGroupName --template-file azuredeploy.bicep --parameters functionAppName="$functionAppName" -o table
+    az deployment group create -g $resourceGroupName --template-file azuredeploy.bicep --parameters functionAppName="$functionAppName" functionAppNameElastic="$functionAppNameElastic" -o table
 }
 
 #Add Connection string to key vault
@@ -43,8 +43,8 @@ $storageConnectionString = az storage account show-connection-string --name $sto
 Write-Host "Adding EventHubConnectionString to $keyVaultName" -ForegroundColor Cyan
 az keyvault secret set --value $eventHubConnectionString --vault-name $keyVaultName --name "EventHubConnectionString" -o tsv --query "name"
 
-Write-Host "Adding Storage Account connection string  to $keyVaultName" -ForegroundColor Cyan
-az keyvault secret set --value $storageConnectionString --vault-name $keyVaultName --name "AzureWebJobsStorage" -o tsv --query "name"
+# Write-Host "Adding Storage Account connection string  to $keyVaultName" -ForegroundColor Cyan
+# az keyvault secret set --value $storageConnectionString --vault-name $keyVaultName --name "AzureWebJobsStorage" -o tsv --query "name"
 
 
 Write-Host "Adding dummy key vault secrets for S3 values. Be sure to change these!" -ForegroundColor Cyan
@@ -82,8 +82,11 @@ if(Test-path $publishZip) {Remove-item $publishZip}
 Add-Type -assembly "system.io.compression.filesystem"
 [io.compression.zipfile]::CreateFromDirectory($publishFolder, $publishZip)
 
-Write-Host "Deploying Function App to Azure " -ForegroundColor Cyan
+Write-Host "Deploying Consumption Plan Function App to Azure " -ForegroundColor Cyan
 az functionapp deploy --resource-group  $resourceGroupName --name $functionAppName --src-path $publishZip --type zip --async true -o table
+
+Write-Host "Deploying Premium Elastic Plan Function App to Azure " -ForegroundColor Cyan
+az functionapp deploy --resource-group  $resourceGroupName --name $functionAppNameElastic --src-path $publishZip --type zip --async true -o table
 
 Write-Host "Settings Function App - AppSettings to Key Vault References " -ForegroundColor Cyan
 $settings= @(
@@ -94,6 +97,7 @@ $settings= @(
 """EventHubName=$eventHubName"""
 )
 az functionapp config appsettings set -n $functionAppName -g $resourceGroupName --settings @settings -o table
+az functionapp config appsettings set -n $functionAppNameElastic -g $resourceGroupName --settings @settings -o table
 
 $appsettings = @{}
 $appsettings.Add("EventHubConnectionString",$eventHubConnectionString);
