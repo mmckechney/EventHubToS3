@@ -3,6 +3,8 @@
 This code will demonstrate the movement of events from Azure [Event Hub](https://azure.microsoft.com/en-us/services/event-hubs) to files saved in an AWS S3 Bucket with the use of [Azure Functions](https://azure.microsoft.com/en-us/services/functions/).\
 In addition, it will demonstrate the use if [Key Vault](https://azure.microsoft.com/en-us/services/key-vault/) to securely store your connection strings and access keys.
 
+![Diagram of service process flow](images/flow.png)
+
 Contents:
 
 - [Pre-requisites](#pre-requisites)
