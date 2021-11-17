@@ -18,7 +18,7 @@ namespace EventProducer
                 messageCount = tmp;
             }
 
-            var host = CreateHostBuilder(args);
+            var host = CreateHostBuilder(args).UseConsoleLifetime();
             await host.RunConsoleAsync(Program.cancellationToken);
             return Environment.ExitCode;
 

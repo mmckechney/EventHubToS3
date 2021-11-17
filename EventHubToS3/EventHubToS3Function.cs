@@ -36,6 +36,10 @@ namespace EventHubToS3
                     var s3Secret = Environment.GetEnvironmentVariable("S3Secret");
                     var s3AccessKey = Environment.GetEnvironmentVariable("S3AccessKey");
                     var s3BucketName = Environment.GetEnvironmentVariable("S3BucketName");
+
+                    /*******
+                    Change the following line to rename your file object to the approprate name and path
+                    *******/
                     var s3RequestKey = "SampleMessage-"+ Guid.NewGuid().ToString().Replace("-","").Substring(0,10); // if  you are trying to upload file then give any name for that file.
 
                     // Create AmazonS3Client using secrets
@@ -78,3 +82,5 @@ namespace EventHubToS3
         }
     }
 }
+
+ 
