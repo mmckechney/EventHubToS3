@@ -5,7 +5,13 @@ VisualStudioVersion = 17.0.31815.197
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "EventHubToS3", "EventHubToS3\EventHubToS3.csproj", "{A721FBC1-B82C-4FB7-B39C-24FDDD428BD2}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EventProducer", "EventProducer\EventProducer.csproj", "{71EE71CD-4E6D-4F10-9213-8BC7BD951F48}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "EventProducer", "EventProducer\EventProducer.csproj", "{71EE71CD-4E6D-4F10-9213-8BC7BD951F48}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{F34CE12F-5588-4F44-B767-05376C97FC67}"
+	ProjectSection(SolutionItems) = preProject
+		deploy.ps1 = deploy.ps1
+		README.md = README.md
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
